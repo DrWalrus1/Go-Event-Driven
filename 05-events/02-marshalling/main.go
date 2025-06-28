@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
-	"strconv"
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-redisstream/pkg/redisstream"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/redis/go-redis/v9"
 )
+
+type PaymentCompleted struct {
+	PaymentID   string `json:"payment_id"`
+	OrderID     string `json:"order_id"`
+	CompletedAt string `json:"completed_at"`
+}
 
 func main() {
 	logger := watermill.NewSlogLogger(nil)
@@ -35,18 +41,32 @@ func main() {
 	}
 
 	router.AddHandler(
-		"temperatureConverterHandler",
-		"temperature-celsius",
+		"PaymentCompletedHandler",
+		"payment-completed",
 		sub,
-		"temperature-fahrenheit",
+		"order-confirmed",
 		pub,
 		func(msg *message.Message) ([]*message.Message, error) {
-			fahrenheit, err := celsiusToFahrenheit(string(msg.Payload))
+			var paymentCompleted PaymentCompleted
+			err := json.Unmarshal(msg.Payload, &paymentCompleted)
 			if err != nil {
 				return nil, err
 			}
-			newMsg := message.NewMessage(watermill.NewUUID(), []byte(fahrenheit))
+			orderConfirmed := struct {
+				OrderID     string `json:"order_id"`
+				ConfirmedAt string `json:"confirmed_at"`
+			}{
+				OrderID:     paymentCompleted.OrderID,
+				ConfirmedAt: paymentCompleted.CompletedAt,
+			}
+			payload, err := json.Marshal(orderConfirmed)
+			if err != nil {
+				return nil, err
+			}
+
+			newMsg := message.NewMessage(watermill.NewUUID(), payload)
 			return []*message.Message{newMsg}, nil
+
 		},
 	)
 
@@ -54,13 +74,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func celsiusToFahrenheit(temperature string) (string, error) {
-	celsius, err := strconv.Atoi(temperature)
-	if err != nil {
-		return "", err
-	}
-
-	return strconv.Itoa(celsius*9/5 + 32), nil
 }

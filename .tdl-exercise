@@ -1,4 +1,4 @@
-exercise_id = "c0cd420d-5e6e-4d11-9d43-3154c300eb7a"
-directory = "04-router/01-handlers"
+exercise_id = "f2453fd3-a9ec-4dea-9052-d9c56c1a1747"
+directory = "06-middlewares/01-add-middleware"
 is_text_only = false
 is_optional = false
